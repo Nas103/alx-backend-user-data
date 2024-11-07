@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Module for filtering log messages.
+Module to filter log messages and connect to a MySQL database.
 """
 
 import logging
+import os
+import mysql.connector
 import re
 from typing import List
 
@@ -16,15 +18,6 @@ def filter_datum(
 ) -> str:
     """
     Obfuscates specified fields in a log message.
-
-    Args:
-        fields (List[str]): List of fields to obfuscate.
-        redaction (str): String to replace the field values with.
-        message (str): The log message to be obfuscated.
-        separator (str): The character separating fields in the log message.
-
-    Returns:
-        str: The obfuscated log message.
     """
     pattern = '|'.join(
         [f'{field}=[^{separator}]*' for field in fields]
@@ -37,15 +30,14 @@ def filter_datum(
 
 
 class RedactingFormatter(logging.Formatter):
-    """ Redacting Formatter class
-    """
+    """Formatter for redacting log fields."""
 
     REDACTION = "***"
     FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
     SEPARATOR = ";"
 
     def __init__(self, fields: List[str]):
-        super(RedactingFormatter, self).__init__(self.FORMAT)
+        super().__init__(self.FORMAT)
         self.fields = fields
 
     def format(self, record: logging.LogRecord) -> str:
@@ -54,28 +46,66 @@ class RedactingFormatter(logging.Formatter):
                             original_message, self.SEPARATOR)
 
 
-PII_FIELDS = ('email', 'phone_number', 'ssn', 'credit_card', 'dob')
+# PII fields to redact
+PII_FIELDS = ('name', 'email', 'phone', 'ssn', 'password')
+
+
+def get_db():
+    """
+    Returns a MySQL database connection.
+    """
+    db_username = os.getenv("PERSONAL_DATA_DB_USERNAME", "root")
+    db_password = os.getenv("PERSONAL_DATA_DB_PASSWORD", "")
+    db_host = os.getenv("PERSONAL_DATA_DB_HOST", "localhost")
+    db_name = os.getenv("PERSONAL_DATA_DB_NAME")
+
+    if not db_name:
+        raise ValueError("Database name is required.")
+
+    return mysql.connector.connect(
+        user=db_username,
+        password=db_password,
+        host=db_host,
+        database=db_name
+    )
 
 
 def get_logger() -> logging.Logger:
     """
-    Creates and returns a logging.Logger object with specific configurations.
-
-    Returns:
-        logging.Logger: Configured logger with a RedactingFormatter.
+    Configures and returns a logger.
     """
     logger = logging.getLogger("user_data")
     logger.setLevel(logging.INFO)
     logger.propagate = False
 
-    # Create stream handler
     handler = logging.StreamHandler()
-
-    # Set formatter for the handler
     formatter = RedactingFormatter(fields=PII_FIELDS)
     handler.setFormatter(formatter)
-
-    # Add handler to the logger
     logger.addHandler(handler)
 
     return logger
+
+
+def main():
+    """
+    Logs user data from the database with filtered PII.
+    """
+    logger = get_logger()
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM users;")
+
+    for row in cursor:
+        log_message = (
+            f"name={row[0]}; email={row[1]}; phone={row[2]}; "
+            f"ssn={row[3]}; password={row[4]}; ip={row[5]}; "
+            f"last_login={row[6]}; user_agent={row[7]}"
+        )
+        logger.info(log_message)
+
+    cursor.close()
+    db.close()
+
+
+if __name__ == "__main__":
+    main()
