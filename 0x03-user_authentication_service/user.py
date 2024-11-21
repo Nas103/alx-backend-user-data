@@ -12,7 +12,7 @@ Base = declarative_base()
 class User(Base):
     """
     SQLAlchemy User model for the 'users' table.
-    
+
     Attributes:
         id (int): Primary key of the user.
         email (str): Non-nullable email of the user.
