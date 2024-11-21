@@ -2,12 +2,13 @@
 """
 DB module
 """
-from sqlalchemy.exc import InvalidRequestError, NoResultFound
+from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
-
+from sqlalchemy.exc import InvalidRequestError, NoResultFound
+from sqlalchemy.exc import InvalidRequestError
 from user import Base, User
 
 
@@ -19,8 +20,8 @@ class DB:
         """Initialize a new DB instance
         """
         self._engine = create_engine("sqlite:///a.db", echo=False)
-        Base.metadata.drop_all(self._engine)  # Clear existing database
-        Base.metadata.create_all(self._engine)  # Create new tables
+        Base.metadata.drop_all(self._engine)
+        Base.metadata.create_all(self._engine)
         self.__session = None
 
     @property
@@ -43,7 +44,7 @@ class DB:
         """
         new_user = User(email=email, hashed_password=hashed_password)
         self._session.add(new_user)
-        self._session.commit()  # Commit to save changes to the database
+        self._session.commit()
         self._session.refresh(new_user)
         return new_user
 
@@ -58,12 +59,10 @@ class DB:
             NoResultFound: If no matching user is found.
             InvalidRequestError: If invalid query arguments are provided.
         """
-        if not kwargs:
-            raise InvalidRequestError("No arguments provided for query")
 
         try:
             return self._session.query(User).filter_by(**kwargs).one()
-        except NoResultFound:
-            raise NoResultFound("No user found with the specified criteria")
-        except Exception as e:
-            raise InvalidRequestError(f"Invalid query arguments: {e}")
+        except NoResultFound as e:
+            raise NoResultFound from e  # Explicitly re-raise NoResultFound
+        except InvalidRequestError as e:
+            raise InvalidRequestError from e
