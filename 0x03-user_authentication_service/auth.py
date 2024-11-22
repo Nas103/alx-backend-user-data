@@ -12,6 +12,6 @@ def _hash_password(password: str) -> bytes:
         bytes: The salted hash of the password.
     """
     # Using a fixed salt to generate the same output for testing
-    fixed_salt = b'$2b$12$eUDdeuBtrD41c8dXvzh95ehsWYCCAi4VH1JbESzgbgZT.eMMzi.G2'
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), fixed_salt)
-    return hashed_password
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode(), salt)
+    return hashed
