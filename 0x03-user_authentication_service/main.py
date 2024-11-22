@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+"""
+Auth module to handle user authentication and registration.
+"""
 import requests
 
 BASE_URL = "http://127.0.0.1:5000"
